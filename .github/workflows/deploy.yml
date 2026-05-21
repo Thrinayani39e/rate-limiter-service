@@ -53,9 +53,29 @@ jobs:
     name: Deploy to Oracle Cloud Swarm
     runs-on: ubuntu-latest
     needs: build-push
+    permissions:
+      contents: read
+      packages: read
+      deployments: write
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Create GitHub Deployment
+        id: deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'production',
+              description: 'Oracle Cloud Swarm — rate-limiter-39e.duckdns.org',
+              auto_merge: false,
+              required_contexts: []
+            });
+            core.setOutput('deployment_id', deployment.data.id);
 
       - name: Copy compose file to server
         uses: appleboy/scp-action@v0.1.7
@@ -96,3 +116,30 @@ jobs:
               rate-limiter
 
             echo "Deployed ${{ env.IMAGE }}:${{ needs.build-push.outputs.tag }}"
+
+      - name: Mark deployment success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.deployment_id }},
+              state: 'success',
+              environment_url: 'https://rate-limiter-39e.duckdns.org/swagger-ui/index.html',
+              description: 'Deployed successfully'
+            });
+
+      - name: Mark deployment failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.deployment_id }},
+              state: 'failure',
+              description: 'Deployment failed'
+            });
