@@ -1,0 +1,203 @@
+{
+  "info": {
+    "_postman_id": "c7a3f91d-4b2e-4d8a-b5c6-1f2e3d4a5b6c",
+    "name": "Rate Limiter Service",
+    "description": "Pre-built requests for the Distributed Rate Limiter Microservice. Run `mvn clean package && docker compose up` first.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Check Rate Limit",
+      "item": [
+        {
+          "name": "Sliding Window — allowed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"user123\",\n  \"algorithm\": \"sliding-window\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rate-limit/check",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rate-limit", "check"]
+            },
+            "description": "POST a request using the sliding-window algorithm (20 req / 60 s). Returns 200 while under limit, 429 once exceeded."
+          },
+          "response": [
+            {
+              "name": "200 Allowed",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"clientId\": \"user123\",\n  \"allowed\": true,\n  \"algorithm\": \"sliding-window\",\n  \"timestamp\": \"2024-06-01T12:00:00\"\n}"
+            },
+            {
+              "name": "429 Rate Limited",
+              "status": "Too Many Requests",
+              "code": 429,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"clientId\": \"user123\",\n  \"allowed\": false,\n  \"algorithm\": \"sliding-window\",\n  \"timestamp\": \"2024-06-01T12:00:00\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Token Bucket — allowed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"user456\",\n  \"algorithm\": \"token-bucket\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rate-limit/check",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rate-limit", "check"]
+            },
+            "description": "POST using the token-bucket algorithm (10 req / 1 s). Returns 200 while under limit, 429 once the bucket is exhausted."
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Algorithm — 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"user789\",\n  \"algorithm\": \"leaky-bucket\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rate-limit/check",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rate-limit", "check"]
+            },
+            "description": "Demonstrates 400 Bad Request for an unrecognized algorithm name."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Audit Log",
+      "item": [
+        {
+          "name": "Get Audit Log — user123",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rate-limit/audit/user123",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rate-limit", "audit", "user123"]
+            },
+            "description": "Fetch the full audit log from PostgreSQL for clientId=user123. Returns 404 if no records exist yet."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "[\n  {\n    \"id\": 1,\n    \"clientId\": \"user123\",\n    \"algorithm\": \"sliding-window\",\n    \"allowed\": true,\n    \"timestamp\": \"2024-06-01T12:00:00\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Get Audit Log — unknown client (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rate-limit/audit/unknown-client",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rate-limit", "audit", "unknown-client"]
+            },
+            "description": "Demonstrates 404 for a clientId that has no audit records."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Stats",
+      "item": [
+        {
+          "name": "Get Stats — user123",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rate-limit/stats/user123",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rate-limit", "stats", "user123"]
+            },
+            "description": "Returns totalRequests, blockedCount, and allowRate% computed from the PostgreSQL audit table."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"clientId\": \"user123\",\n  \"totalRequests\": 50,\n  \"blockedCount\": 5,\n  \"allowRate\": 90.0\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Stats — user456",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rate-limit/stats/user456",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rate-limit", "stats", "user456"]
+            },
+            "description": "Stats for the token-bucket test client."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
