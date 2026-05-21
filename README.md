@@ -1,5 +1,7 @@
 # Distributed Rate Limiter Microservice
 
+**Live:** [https://rate-limiter-39e.duckdns.org/swagger-ui/index.html](https://rate-limiter-39e.duckdns.org/swagger-ui/index.html)
+
 A production-ready distributed rate limiter built with Java 17, Spring Boot 3, Redis, and PostgreSQL.
 Supports two algorithms — **Token Bucket** and **Sliding Window** — with full PostgreSQL audit logging.
 
